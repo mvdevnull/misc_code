@@ -1,0 +1,100 @@
+UDP tunneling through TCP
+
+You may find yourself in a situation where you want to forward some UDP traffic through a pair of TCP sockets. I had this exact need when I worked in a very limited network environment that had a problematic DNS server. Domain name lookups succeeded only after 2 or 3 attempts making web browsing a really bad experience with a lot of refreshes necessary to get all page components right. I was able, though, to connect through SSH to my university’s shell account.
+
+SSH is able to forward TCP traffic but not UDP traffic. DNS is transported over UDP (port 53). So, I had to write a utility that tunnels UDP traffic through TCP sockets.
+
+The setup was the following:
+
+    My computer was setup with localhost as a DNS server.
+    The local part of the utility listened to UDP port 53 and forwarded data to TCP localhost:7001 (arbitrary port number).
+    My SSH client was setup to forward port 7001 to localhost:7002.
+    The remote part of the utility (which was running on my shell account) listened to TCP 7002 and when it received data, it forwarded them to a reliable DNS server.
+
+The local part of the utility is the following:
+
+#!/usr/bin/python
+ 
+import logging
+import socket
+import sys
+ 
+def get_domain(data):
+  dominio = ''
+  tipo = (ord(data[2]) >> 3) & 15   # Opcode bits
+  if tipo == 0:                     # Standard query
+    ini=12
+    lon=ord(data[ini])
+    while lon != 0:
+      dominio+=data[ini+1:ini+lon+1]+'.'
+      ini+=lon+1
+      lon=ord(data[ini])
+    return dominio
+  return 'unknown (tipo=%d)' % (tipo)
+ 
+_log = logging.getLogger('my_logger')
+_log.setLevel(logging.INFO)
+#_log.setLevel(logging.DEBUG)
+_log.addHandler(logging.StreamHandler())
+ 
+udp_port = int(sys.argv[1])
+tcp_host = sys.argv[2]
+tcp_port = int(sys.argv[3])
+_log.info('Listening at UDP port %d and '\
+          'forwarding to TCP %s:%d' % (udp_port, tcp_host, tcp_port))
+ 
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcp_socket.connect((tcp_host, tcp_port))
+ 
+udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_socket.bind(('', udp_port))
+while 1:
+  try:
+    buffer, addr = udp_socket.recvfrom(4096)
+    _log.debug('Relaying from %s: [%s]' % (str(addr), buffer))
+    _log.info('DNS query from [%s] for [%s]' % (addr[0], get_domain(buffer)))
+    tcp_socket.send(buffer)
+    buffer = tcp_socket.recv(4096)
+    _log.debug('Got response: [%s]' % buffer)
+    udp_socket.sendto(buffer, addr)
+  except socket.error, e:
+    _log.info('Socket error: %s' % e)
+	
+	
+	The remote part of the utility is the following:
+	
+	#!/usr/bin/python
+ 
+import logging
+import socket
+import sys
+ 
+_log = logging.getLogger('my_logger')
+_log.setLevel(logging.INFO)
+#_log.setLevel(logging.DEBUG)
+_log.addHandler(logging.StreamHandler())
+ 
+tcp_port = int(sys.argv[1])
+udp_host = sys.argv[2]
+udp_port = int(sys.argv[3])
+_log.info('Listening at TCP port %d and '\
+ 'forwarding to UDP %s:%d' % (tcp_port, udp_host, udp_port))
+ 
+udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ 
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcp_socket.bind(('', tcp_port))
+tcp_socket.listen(1)
+tcp_conn, tcp_addr = tcp_socket.accept()
+_log.info('Got TCP connection from %s' % (str(tcp_addr)))
+ 
+while 1:
+ buffer = tcp_conn.recv(4096)
+ _log.debug('Relaying from %s: [%s]' % (str(tcp_addr), buffer))
+ udp_socket.sendto(buffer, (udp_host, udp_port))
+ buffer, _ = udp_socket.recvfrom(4096)
+ _log.debug('Got response: [%s]' % (buffer))
+ tcp_conn.send(buffer)
+	
+	
+	
