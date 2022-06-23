@@ -1,0 +1,12 @@
+helpful when tunneling X11 though SSH using something like Xming and want a GUI through a terminal and need to run as root
+
+
+
+xauth list > /tmp/xauth.txt
+tail -1 /tmp/xauth.txt > /tmp/xauth2.txt
+mv /tmp/xauth2.txt /tmp/xauth.txt
+XTMP="`cat /tmp/xauth.txt`"
+rm /tmp/xauth.txt
+sudo xauth add $XTMP
+sudo xcalc #(or whatever xwindows app you need)
+
