@@ -1,3 +1,20 @@
+# PMapper Python 3.13 compatibility patch
+#
+# Fixes: ImportError: cannot import name 'Mapping' from 'collections'
+#   (collections.Mapping / MutableMapping were removed in Python 3.10+,
+#   moved to collections.abc)
+#
+# Setup on a new machine:
+#   1. git clone https://github.com/nccgroup/PMapper.git
+#   2. cd PMapper
+#   3. copy this file into the repo root, then: git apply python313-compat.patch
+#   4. python3 -m venv venv
+#   5. source venv/bin/activate
+#   6. pip install -e .
+#
+# Optional: install graphviz (`dot`) via your OS package manager if you want
+# to use `pmapper visualize`.
+
 diff --git a/principalmapper/util/case_insensitive_dict.py b/principalmapper/util/case_insensitive_dict.py
 index ff5ee90..0fd4a99 100644
 --- a/principalmapper/util/case_insensitive_dict.py
